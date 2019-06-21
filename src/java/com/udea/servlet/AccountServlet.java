@@ -5,8 +5,12 @@
  */
 package com.udea.servlet;
 
+import com.udea.dao.AccountFacade;
+import com.udea.model.Account;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
+import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -18,6 +22,10 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class AccountServlet extends HttpServlet {
 
+    
+    @EJB
+    private AccountFacade accountFacade;
+    
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -30,17 +38,43 @@ public class AccountServlet extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
-        try (PrintWriter out = response.getWriter()) {
-            /* TODO output your page here. You may use following sample code. */
-            out.println("<!DOCTYPE html>");
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<title>Servlet AccountServlet</title>");            
-            out.println("</head>");
-            out.println("<body>");
-            out.println("<h1>Servlet AccountServlet at " + request.getContextPath() + "</h1>");
-            out.println("</body>");
-            out.println("</html>");
+        PrintWriter out = response.getWriter();
+            try {
+            String action =request.getParameter("action");
+            String url="index.jsp";
+            if("list".equals(action)){
+                List<Account> findAll = accountFacade.findAll();
+                request.getSession().setAttribute("accounts",findAll);
+                url="listAccounts.jsp";
+            } else if ("login".equals(action)){
+                String u=request.getParameter("username");
+                String p=request.getParameter("password");
+                boolean checkLogin=accountFacade.checkLogin(u, p);
+                if(checkLogin){
+                    request.getSession().setAttribute("login",u );
+                    url="manager.jsp";
+                }else{
+                    url="login.jsp?error=1";
+                }
+            } else if ("insert".equals(action)){
+                Account a= new Account();
+                a.setUsername(request.getParameter("username"));
+                a.setPassword(request.getParameter("password"));
+                a.setEmail(request.getParameter("email"));
+                accountFacade.create(a);
+                url="login.jsp";
+            } else if ("delete".equals(action)){
+                String id=request.getParameter("id");
+                Account a=accountFacade.find(Integer.valueOf(id));
+                accountFacade.remove(a);
+                url="AccountServlet?action=list";
+            } else if ("logout".equals(action)) {
+                request.getSession().removeAttribute("login");
+                url="login.jsp";
+            }
+            response.sendRedirect(url);
+        } finally {
+            out.close();
         }
     }
 
